@@ -70,7 +70,8 @@ elif(len(sys.argv) == 2):
 	filename = sys.argv[1]
 	output_filename =  'output.json'
 else:
-	print("To run: \n\n " + sys.argv[0] + " <labelbee json> <output file>\n")
+	print("To run: \n\n python " + sys.argv[0] + " <labelbee json> <output file>\n")
+	exit()
 
 
 VIDEO_NAME = get_video_name(filename)
@@ -125,4 +126,4 @@ for i in range(len(lbee)):
 with open(output_filename, 'w+') as f:
 	f.write(json.dumps(OPEN_POSE, indent=2))
 
-print('File is written in output.json.')
+print('File is written in ' + output_filename)
