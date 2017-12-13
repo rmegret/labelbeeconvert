@@ -3,6 +3,8 @@ import sys
 import json
 import uuid
 from math import cos, sin, radians
+import numpy as np
+from collections import OrderedDict
 
 PARTS = dict()
 PARTS["tail"] = 0
@@ -51,7 +53,7 @@ def get_box_coords(x,y,height, width, theta):
 	return pts
 
 def extract_parts(parts_list):
-	keypoints = range(10)
+	keypoints = np.zeros(10).tolist()
 
 	for part in parts_list:
 		p_name = str(part["label"]).lower()
@@ -78,12 +80,11 @@ VIDEO_NAME = get_video_name(filename)
 VIDEO_HEIGHT = 2560
 VIDEO_WIDTH = 1440
 
-OPEN_POSE = dict()
-OPEN_POSE['images'] = list()
-OPEN_POSE['annotations'] = list()
-OPEN_POSE['categories'] = fill_categories()
+OPEN_POSE = OrderedDict()
 OPEN_POSE['info'] = fill_metadata(VIDEO_NAME)
-
+OPEN_POSE['images'] = list()
+OPEN_POSE['categories'] = fill_categories()
+OPEN_POSE['annotations'] = list()
 
 
 data = ''
@@ -92,31 +93,39 @@ with open(filename,'r+') as f:
 
 lbee = json.loads(data)
 
-
-for i in range(len(lbee)):
-	if lbee[i] == None:
+# lbee is a list, lbee[i] is info for frame i
+for i in range(len(lbee)):  # i=frameid
+	framedata = lbee[i]
+	if framedata is None:
 		continue
 	
-	img_desc = dict()
+	img_desc = OrderedDict()
 	img_desc['id'] = i
 	#img_desc['file_name'] = VIDEO_NAME + '_' + str(i) + '.jpeg'
 	img_desc['file_name'] =  "0" * (12 - len(str(i))) + str(i) + '.jpeg'
 	img_desc['height'] = VIDEO_HEIGHT
 	img_desc['width'] =  VIDEO_WIDTH
 	OPEN_POSE['images'].append(img_desc)
-	id_count = 1
-	for key in lbee[i].keys():
-		annon = dict()
-		annon['id'] = int(key) + id_count
+	
+	id_count = 0
+	# lbee[i] is dict for frame i, lbee[i][key] is bee with id=key
+	for key in lbee[i].keys():  # key=beeid
+		obs = lbee[i][key]
+	  
+		annon = OrderedDict()
+		annon['id'] = i*10000 + id_count
 		id_count += 1
+		
 		annon["iscrowd"] = 0
 		annon["image_id"] = i
 		annon["category_id"] = 1
-		annon["num_keypoints"] = 5
-		annon["segmentation"] = [get_box_coords(lbee[i][key]["x"], lbee[i][key]["y"], lbee[i][key]["height"], lbee[i][key]["width"], lbee[i][key]["angle"])]
+		
+		annon["segmentation"] = [get_box_coords(obs["x"], obs["y"], obs["height"], obs["width"], obs["angle"])]
 		annon["bbox"] = annon["segmentation"]
-		annon["area"] = lbee[i][key]["width"] * lbee[i][key]["height"]
-		annon["keypoints"] = extract_parts(lbee[i][key]["parts"])
+		annon["area"] = obs["width"] * obs["height"]
+		
+		annon["num_keypoints"] = 5
+		annon["keypoints"] = extract_parts(obs["parts"])
 
 
 		OPEN_POSE['annotations'].append(annon)
