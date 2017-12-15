@@ -150,7 +150,6 @@ PARTS["lant"] = 8
 if __name__ == "__main__":
 
     # Parse the command line arguments
-
     parser = argparse.ArgumentParser(
         description="Convert from labelbee format to OpenPose format")
 
