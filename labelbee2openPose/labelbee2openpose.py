@@ -1,8 +1,6 @@
-
-import sys
 import json
 import numpy as np
-# import argparse
+import argparse
 from math import cos, sin, radians
 from collections import OrderedDict
 
@@ -83,20 +81,18 @@ PARTS["lant"] = 8
 
 if __name__ == "__main__":
 
-    if len(sys.argv) == 3:
-        filename = sys.argv[1]
-        output_filename = sys.argv[2]
-    elif(len(sys.argv) == 2):
-        filename = sys.argv[1]
-        output_filename = 'output.json'
-    else:
-        print("To run:\n")
-        print("\t\tpython " + sys.argv[0] + " <labelbee json> <output file>\n")
-        exit()
+    parser = argparse.ArgumentParser(description="Convert from labelbee format to OpenPose format")
+    parser.add_argument('-if', '--infile', required=True, help="Labelbee Format file.")
+    parser.add_argument('-H', '--height', type=int, default=2560, help="Height of the video")
+    parser.add_argument('-W', '--width', type=int, default=1440, help="Width of the video")
+    parser.add_argument('-of', '--outfile', default="output.json", help="Output file (OpenPose format)")
+    args = parser.parse_args()
 
+    filename = args.infile
+    output_filename = args.outfile
     VIDEO_NAME = get_video_name(filename)
-    VIDEO_HEIGHT = 2560
-    VIDEO_WIDTH = 1440
+    VIDEO_HEIGHT = args.height
+    VIDEO_WIDTH = args.width
 
     OPEN_POSE = OrderedDict()
     OPEN_POSE['info'] = fill_metadata(VIDEO_NAME)
