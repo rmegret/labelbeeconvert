@@ -81,11 +81,22 @@ PARTS["lant"] = 8
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Convert from labelbee format to OpenPose format")
-    parser.add_argument('-if', '--infile', required=True, help="Labelbee Format file.")
-    parser.add_argument('-H', '--height', type=int, default=2560, help="Height of the video")
-    parser.add_argument('-W', '--width', type=int, default=1440, help="Width of the video")
-    parser.add_argument('-of', '--outfile', default="output.json", help="Output file (OpenPose format)")
+    parser = argparse.ArgumentParser(
+        description="Convert from labelbee format to OpenPose format")
+
+    parser.add_argument('-if', '--infile',
+                        required=True, help="Labelbee Format file.")
+
+    parser.add_argument('-H', '--height', type=int,
+                        default=2560, help="Height of the video")
+
+    parser.add_argument('-W', '--width', type=int,
+                        default=1440, help="Width of the video")
+
+    parser.add_argument('-of', '--outfile',
+                        default="output.json",
+                        help="Output file (OpenPose format)")
+
     args = parser.parse_args()
 
     filename = args.infile
