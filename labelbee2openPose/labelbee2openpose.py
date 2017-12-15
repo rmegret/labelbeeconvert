@@ -69,6 +69,73 @@ def extract_parts(parts_list):
     return keypoints
 
 
+def load_json(filename):
+    data = ''
+
+    with open(filename, 'r+') as f:
+        data = f.read()
+
+    json_data = json.loads(data)
+
+    return json_data
+
+
+def save_openPose(out_filename, outData):
+    with open(out_filename, 'w+') as f:
+        f.write(json.dumps(outData, indent=2))
+
+    print('File is written in ' + out_filename)
+
+    return
+
+
+def convert_to_openpose(frames_annon, vid_data):
+    openPose = OrderedDict()
+    openPose['info'] = fill_metadata(vid_data["name"])
+    openPose['images'] = list()
+    openPose['categories'] = fill_categories()
+    openPose['annotations'] = list()
+
+    for frame_id in range(len(frames_annon)):
+        if frames_annon[frame_id] is None:
+            continue
+
+        frame = frames_annon[frame_id]
+        img_desc = OrderedDict()
+        img_desc['id'] = frame_id
+
+        # File_name format is the frame_id with at least 12 digits
+        img_desc['file_name'] = "0" * (12 - len(str(frame_id)))
+        img_desc['file_name'] += str(frame_id) + '.jpeg'
+
+        img_desc['height'] = vid_data["height"]
+        img_desc['width'] = vid_data["width"]
+
+        openPose['images'].append(img_desc)
+
+        id_count = 1
+
+        for bee_id in frame.keys():
+            bee_annon = frame[bee_id]
+            annon = OrderedDict()
+            annon['id'] = int(bee_id) + id_count
+            id_count += 1
+
+            annon["iscrowd"] = 0
+            annon["image_id"] = frame_id
+            annon["category_id"] = 1
+            annon["num_keypoints"] = 5
+
+            annon["segmentation"] = get_box_coords(bee_annon)
+            annon["bbox"] = annon["segmentation"]
+            annon["area"] = bee_annon["width"] * bee_annon["height"]
+            annon["keypoints"] = extract_parts(bee_annon["parts"])
+
+            openPose['annotations'].append(annon)
+
+    return openPose
+
+
 # Do flexible whit more parts
 PARTS = dict()
 PARTS["tail"] = 0
@@ -79,13 +146,16 @@ PARTS["torax"] = 4
 PARTS["rant"] = 6
 PARTS["lant"] = 8
 
+
 if __name__ == "__main__":
+
+    # Parse the command line arguments
 
     parser = argparse.ArgumentParser(
         description="Convert from labelbee format to OpenPose format")
 
     parser.add_argument('-if', '--infile',
-                        required=True, help="Labelbee Format file.")
+                        required=True, help="Labelbee Format file")
 
     parser.add_argument('-H', '--height', type=int,
                         default=2560, help="Height of the video")
@@ -101,52 +171,18 @@ if __name__ == "__main__":
 
     filename = args.infile
     output_filename = args.outfile
-    VIDEO_NAME = get_video_name(filename)
-    VIDEO_HEIGHT = args.height
-    VIDEO_WIDTH = args.width
 
-    OPEN_POSE = OrderedDict()
-    OPEN_POSE['info'] = fill_metadata(VIDEO_NAME)
-    OPEN_POSE['images'] = list()
-    OPEN_POSE['categories'] = fill_categories()
-    OPEN_POSE['annotations'] = list()
+    # Fill video metadata
+    videoData = dict()
+    videoData["name"] = get_video_name(filename)
+    videoData["height"] = args.height
+    videoData["width"] = args.width
 
-    data = ''
-    with open(filename, 'r+') as f:
-        data = f.read()
+    # Load Labelbee format
+    lbee_data = load_json(filename)
 
-    lbee = json.loads(data)
+    # Convert to Open Pose format
+    openPoseData = convert_to_openpose(lbee_data, videoData)
 
-    for i in range(len(lbee)):
-        if lbee[i] is None:
-            continue
-
-        frame = lbee[i]
-        img_desc = OrderedDict()
-        img_desc['id'] = i
-        img_desc['file_name'] = "0" * (12 - len(str(i))) + str(i) + '.jpeg'
-        img_desc['height'] = VIDEO_HEIGHT
-        img_desc['width'] = VIDEO_WIDTH
-        OPEN_POSE['images'].append(img_desc)
-        id_count = 1
-        for bee_id in frame.keys():
-            bee_annon = frame[bee_id]
-            annon = OrderedDict()
-            annon['id'] = int(bee_id) + id_count
-            id_count += 1
-            annon["iscrowd"] = 0
-            annon["image_id"] = i
-            annon["category_id"] = 1
-            annon["num_keypoints"] = 5
-
-            annon["segmentation"] = get_box_coords(bee_annon)
-            annon["bbox"] = annon["segmentation"]
-            annon["area"] = bee_annon["width"] * bee_annon["height"]
-            annon["keypoints"] = extract_parts(bee_annon["parts"])
-
-            OPEN_POSE['annotations'].append(annon)
-
-    with open(output_filename, 'w+') as f:
-        f.write(json.dumps(OPEN_POSE, indent=2))
-
-    print('File is written in ' + output_filename)
+    # Save in output file
+    save_openPose(output_filename, openPoseData)
