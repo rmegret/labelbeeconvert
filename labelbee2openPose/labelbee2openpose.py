@@ -2,6 +2,7 @@
 import sys
 import json
 import numpy as np
+# import argparse
 from math import cos, sin, radians
 from collections import OrderedDict
 
@@ -42,14 +43,6 @@ def get_rotated_pt(x, y, theta, center):
     return [n_x, n_y]
 
 
-# def get_box_coords(x, y, height, width, theta):
-#     center = [x + width/2, y + height/2]
-#     pts = get_rotated_pt(x, y, theta, center)
-#     pts += get_rotated_pt(x, y + height, theta, center)
-#     pts += get_rotated_pt(x + width, y + height, theta, center)
-#     pts += get_rotated_pt(x + width, y, theta, center)
-#     return [pts]
-
 def get_box_coords(bee_annotation):
     x = bee_annotation["x"]
     y = bee_annotation["y"]
@@ -88,67 +81,65 @@ PARTS["torax"] = 4
 PARTS["rant"] = 6
 PARTS["lant"] = 8
 
-if len(sys.argv) == 3:
-    filename = sys.argv[1]
-    output_filename = sys.argv[2]
-elif(len(sys.argv) == 2):
-    filename = sys.argv[1]
-    output_filename = 'output.json'
-else:
-    print("To run:\n")
-    print("\t\tpython " + sys.argv[0] + " <labelbee json> <output file>\n")
-    exit()
+if __name__ == "__main__":
 
+    if len(sys.argv) == 3:
+        filename = sys.argv[1]
+        output_filename = sys.argv[2]
+    elif(len(sys.argv) == 2):
+        filename = sys.argv[1]
+        output_filename = 'output.json'
+    else:
+        print("To run:\n")
+        print("\t\tpython " + sys.argv[0] + " <labelbee json> <output file>\n")
+        exit()
 
-VIDEO_NAME = get_video_name(filename)
-VIDEO_HEIGHT = 2560
-VIDEO_WIDTH = 1440
+    VIDEO_NAME = get_video_name(filename)
+    VIDEO_HEIGHT = 2560
+    VIDEO_WIDTH = 1440
 
-OPEN_POSE = OrderedDict()
-OPEN_POSE['images'] = list()
-OPEN_POSE['annotations'] = list()
-OPEN_POSE['categories'] = fill_categories()
-OPEN_POSE['info'] = fill_metadata(VIDEO_NAME)
+    OPEN_POSE = OrderedDict()
+    OPEN_POSE['info'] = fill_metadata(VIDEO_NAME)
+    OPEN_POSE['images'] = list()
+    OPEN_POSE['categories'] = fill_categories()
+    OPEN_POSE['annotations'] = list()
 
+    data = ''
+    with open(filename, 'r+') as f:
+        data = f.read()
 
-data = ''
-with open(filename, 'r+') as f:
-    data = f.read()
+    lbee = json.loads(data)
 
-lbee = json.loads(data)
+    for i in range(len(lbee)):
+        if lbee[i] is None:
+            continue
 
+        frame = lbee[i]
+        img_desc = OrderedDict()
+        img_desc['id'] = i
+        img_desc['file_name'] = "0" * (12 - len(str(i))) + str(i) + '.jpeg'
+        img_desc['height'] = VIDEO_HEIGHT
+        img_desc['width'] = VIDEO_WIDTH
+        OPEN_POSE['images'].append(img_desc)
+        id_count = 1
+        for bee_id in frame.keys():
+            bee_annon = frame[bee_id]
+            annon = OrderedDict()
+            annon['id'] = int(bee_id) + id_count
+            id_count += 1
+            annon["iscrowd"] = 0
+            annon["image_id"] = i
+            annon["category_id"] = 1
+            annon["num_keypoints"] = 5
 
-for i in range(len(lbee)):
-    if lbee[i] is None:
-        continue
+            annon["segmentation"] = get_box_coords(bee_annon)
+            annon["bbox"] = annon["segmentation"]
+            annon["area"] = bee_annon["width"] * bee_annon["height"]
+            annon["keypoints"] = extract_parts(bee_annon["parts"])
 
-    frame = lbee[i]
-    img_desc = OrderedDict()
-    img_desc['id'] = i
-    img_desc['file_name'] = "0" * (12 - len(str(i))) + str(i) + '.jpeg'
-    img_desc['height'] = VIDEO_HEIGHT
-    img_desc['width'] = VIDEO_WIDTH
-    OPEN_POSE['images'].append(img_desc)
-    id_count = 1
-    for bee_id in frame.keys():
-        bee_annon = frame[bee_id]
-        annon = OrderedDict()
-        annon['id'] = int(bee_id) + id_count
-        id_count += 1
-        annon["iscrowd"] = 0
-        annon["image_id"] = i
-        annon["category_id"] = 1
-        annon["num_keypoints"] = 5
+            OPEN_POSE['annotations'].append(annon)
 
-        annon["segmentation"] = get_box_coords(bee_annon)
-        annon["bbox"] = annon["segmentation"]
-        annon["area"] = bee_annon["width"] * bee_annon["height"]
-        annon["keypoints"] = extract_parts(bee_annon["parts"])
+    with open(output_filename, 'w+') as f:
+        f.write(json.dumps(OPEN_POSE, indent=2))
 
-        OPEN_POSE['annotations'].append(annon)
-
-
-with open(output_filename, 'w+') as f:
-    f.write(json.dumps(OPEN_POSE, indent=2))
-
-print('File is written in ' + output_filename)
+    print('File is written in ' + output_filename)
