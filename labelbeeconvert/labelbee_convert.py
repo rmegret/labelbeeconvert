@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import json
 import pandas as pd
 import argparse
@@ -58,7 +60,7 @@ def tracks_to_df(T):
     return df
     
 def tags_to_df(Tags):
-    df = pd.DataFrame(columns=['frame','id','hamming','c','p'])
+    df = pd.DataFrame(columns=['frame','id','hamming','c','p','g','dm'])
     df[['frame','id']]=df[['frame','id']].astype(np.int32)
     
     all_ids=[]
@@ -79,12 +81,13 @@ def tags_to_df(Tags):
             D['hamming'] = item.get('hamming')
             D['c'] = item.get('c')
             D['p'] = item.get('p')
+            D['g'] = item.get('g')
             D['dm'] = item.get('dm')
             LD.append(D)
 
     #df=df.append(D,ignore_index=True)   
     #print('Converting to DataFrame...')
-    df=pd.DataFrame(LD,columns=['frame','id','hamming','c','p','dm'])   
+    df=pd.DataFrame(LD,columns=['frame','id','hamming','c','p','g','dm'])   
     #print(all_labels)
     #print(all_ids)
     return df
@@ -253,15 +256,34 @@ def plot_activities(df):
     return fig
 
 def main(args):
-  file=pd.read_json(annotations,output_file)
-  with open(output_file,"w") as f:
-      json.dump(Annotations,f)
+    evts=load_fileset(args.inputlist)
+    
+    #flagcols = ['leaving', 'entering', 'pollen', 'walking', 'fanning', 'falsealarm', 'wrongid']
+    #evts[flagcols] = evts[flagcols].astype(int)
+    
+    if (args.plot):
+        evts_val = evts.query('falsealarm!=True & wrongid!=True')
+        evts_val.index = range(evts_val.shape[0])
+        evts_val.reindex()
+        fig=plot_activities(evts_val);
+        plt.tight_layout();
+        plt.show()
+
+    if (args.output):
+        evts.to_csv(args.output)
 
 if __name__ == "__main__": 
-	parser = argparse.ArgumentParser()
-	parser.add_argument('-il',dest="inputlist",help="Input list as CSV")
-	parser.add_argument('-o',dest="output",help="Output file")
-	args = parser.parse_args()
+    
+    parser = argparse.ArgumentParser()
+    
+    show_default = ' (default %(default)s)'
+    parser.add_argument('-il',dest="inputlist",required=True,help="Input list as CSV")
+    parser.add_argument('-o',dest="output",help="Output file")
+    parser.add_argument('-plot', dest='plot', default=False, 
+                        action='store_true',
+                        help='Plot the merged events '+ show_default)
+
+    args = parser.parse_args()
 	
-	main(args)
+    main(args)
 
