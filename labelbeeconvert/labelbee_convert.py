@@ -22,8 +22,11 @@ def tracks_to_df(T):
     df = pd.DataFrame(columns=['frame','id','leaving','entering',
                                'pollen','walking','fanning',
                                'falsealarm','wrongid'])
-    df = df.astype("bool")
+    #df = df.astype("bool")
     df[['frame','id']] = df[['frame','id']].astype("int64")
+    
+    col_labels = ['leaving','entering','pollen','walking','fanning','falsealarm','wrongid']
+    df[col_labels] = df[col_labels].astype('int')
     
     all_labels=[]
     all_ids=[]
@@ -104,13 +107,20 @@ def load_tags_df(filename):
 
 def timestamping(df,timestring,fps=20):
     if (df.shape[0]==0): return df   # Abort if empty
-    
-    t0=pd.Timestamp(timestring)
-    df = df.reindex(columns = np.append( df.columns.values, ['time']))
-    df[['time']] = df[['time']].astype(pd.Timestamp)
-    df[['time']]=t0+pd.to_timedelta(df['frame']/fps,unit='s')
-    
-    df[['datetime']]=df[['time']].applymap(lambda d: pd.to_datetime(d))
+
+    cols=['datetime','date','time']
+    df = df.reindex(columns = np.append( df.columns.values, cols))    
+    if (timestring is not None):
+        t0=pd.Timestamp(timestring)
+        df[['datetime']] = df[['datetime']].astype(pd.Timestamp)
+        df[['datetime']]=t0+pd.to_timedelta(df['frame']/fps,unit='s')
+        
+        df[['date']]=df[['datetime']].applymap(lambda d: d.date())
+        df[['time']]=df[['datetime']].applymap(lambda d: d.time())
+    else:
+        t0=pd.NaT # Not a Time = undefined
+        df[cols] = df[cols].astype(pd.Timestamp)
+        df[cols] = pd.NaT # Not a Time == undefined
     
     return df
 
@@ -147,13 +157,15 @@ def load_fileset(inputlist):
         print("Loading {}...".format(filename))
         
         infos=parse_filename(filename)
+        if (infos is None):
+            print("WARNING: input file '{}' not in format *Cxx_yymmddHHMMSS*. Timestamps will not be computed.".format(filename))
         
         #T=load_tracks_json(filename)
         #df1=tracks_to_df(T)
         df1 = load_tracks_df(filename)
         df1=timestamping(df1, fileinfo['timestamp'])
         if (infos is None):
-            df1['video']=''
+            df1['video']='UNKNOWN'
         else:
             df1['video']=infos['videoname']
         df_list.append(df1)
@@ -161,7 +173,7 @@ def load_fileset(inputlist):
     print("Merging into single DataFrame...")
     df = pd.concat(df_list)
 
-    df[['datetime']]=df[['time']].applymap(lambda d: pd.to_datetime(d))
+    #df[['datetime']]=df[['time']].applymap(lambda d: pd.to_datetime(d))
         
     #df = df.query('FA!=True')
     
