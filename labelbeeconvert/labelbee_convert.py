@@ -43,7 +43,7 @@ def tracks_to_df(T, activity_type='bool', id_type='int', ignore_non_numeric_id=T
         for id in frameDict:
             item=frameDict[id]
             if (ignore_non_numeric_id):
-                if (not str(item['ID']).isdigits()):
+                if (not str(item['ID']).isdigit()):
                     continue
             if ('labels' not in item):
                 labelsstr=''
@@ -153,12 +153,17 @@ def timestamp_from_filename(filename):
     if (info is None): return None
     return info['timestamp']
 
-def load_fileset(inputlist):
+def load_fileset(inputlist=None, filelist=None):
     '''
     ex: inputlist="/Users/megret/Documents/Research/BeeTracking/Soft/labelbee/python/inputlist.csv"
     '''
-    L = pd.read_csv(inputlist,
-                header=0,names=['filename'])
+    if (inputlist is not None):
+        L = pd.read_csv(inputlist,
+                    header=0,names=['filename'])
+    elif (filelist is not None):
+        L = pd.DataFrame(filelist, columns=['filename'])
+    else:
+        raise Error()
     L[['timestamp']]=L[['filename']].applymap(timestamp_from_filename)
     
     df_list=[]
