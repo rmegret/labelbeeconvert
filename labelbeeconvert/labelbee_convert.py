@@ -18,15 +18,22 @@ def load_tags_json(filename):
     return Tags
 
 
-def tracks_to_df(T):
+def tracks_to_df(T, activity_type='bool', id_type='int', ignore_non_numeric_id=True):
     df = pd.DataFrame(columns=['frame','id','leaving','entering',
                                'pollen','walking','fanning',
                                'falsealarm','wrongid'])
-    #df = df.astype("bool")
-    df[['frame','id']] = df[['frame','id']].astype("int64")
+    df[['frame']] = df[['frame']].astype("int64")
     
     col_labels = ['leaving','entering','pollen','walking','fanning','falsealarm','wrongid']
-    df[col_labels] = df[col_labels].astype('int')
+    if (activity_type=='bool'):
+        df[col_labels] = df[col_labels].astype('bool')
+    else:
+        df[col_labels] = df[col_labels].astype('int')
+        
+    if (id_type=='bool'):
+        df[['id']] = df[['id']].astype('bool')
+    else:
+        df[['id']] = df[['id']].astype('int64')
     
     all_labels=[]
     all_ids=[]
@@ -35,6 +42,9 @@ def tracks_to_df(T):
         if (frameDict is None): continue
         for id in frameDict:
             item=frameDict[id]
+            if (ignore_non_numeric_id):
+                if (not str(item['ID']).isdigits()):
+                    continue
             if ('labels' not in item):
                 labelsstr=''
             else:
