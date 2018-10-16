@@ -19,7 +19,7 @@ def load_tags_json(filename):
 
 
 def tracks_to_df(T, activity_type='bool', id_type='int', ignore_non_numeric_id=True):
-    df = pd.DataFrame(columns=['frame','id','leaving','entering',
+    df = pd.DataFrame(columns=['frame','id','labels','leaving','entering',
                                'pollen','walking','fanning',
                                'falsealarm','wrongid'])
     df[['frame']] = df[['frame']].astype("int64")
@@ -72,6 +72,68 @@ def tracks_to_df(T, activity_type='bool', id_type='int', ignore_non_numeric_id=T
     #print(all_ids)
     return df
     
+def tracksV2_to_df(T, activity_type='bool', id_type='int', ignore_non_numeric_id=True):
+    if ('info' in T):
+        #print('v2')
+        data = T['data']
+    else:
+        #print('v1')
+        return tracks_to_df(T,tracksV2_to_df,id_type,ignore_non_numeric_id)
+
+    #ignore_non_numeric_id=True
+    #activity_type = 'int'
+
+    all_labels=[]
+    all_ids=[]
+
+    df = pd.DataFrame(columns=['frame','id','labels','leaving','entering',
+                                   'pollen','walking','fanning',
+                                   'falsealarm','wrongid'])
+
+    cols=['frame','id']
+    df[cols] = df[cols].astype("int64")
+    cols=['leaving','entering','pollen','walking','fanning','falsealarm','wrongid']
+    if (activity_type=='bool'):
+        df[cols] = df[cols].astype("bool")
+    else:
+        df[cols] = df[cols].astype("int")
+
+    for frame in data:
+        if (frame is None): continue
+        frameDict = data[frame]
+        #print(frameDict)
+        for item in frameDict:
+            id = item['id']
+            if (ignore_non_numeric_id):
+                if (not str(id).isdigit()):
+                    continue
+            #print(frame, id)
+            if ('labels' not in item):
+                labelsstr=''
+            else:
+                labelsstr=item['labels']
+            if (labelsstr == ''):
+                labels=[]
+            else:
+                labels=labelsstr.split(',')
+            for l in labels:
+                if (l not in all_labels): all_labels.append(l)
+            if (id not in all_ids): all_ids.append(id)
+            df=df.append(dict(frame=int(item['frame']),
+                              id=int(item['id']),
+                              labels=labelsstr,
+                              leaving='leaving' in labels,
+                              entering='entering' in labels,
+                              pollen='pollen' in labels,
+                              walking='walking' in labels,
+                              fanning='fanning' in labels,
+                              falsealarm='falsealarm' in labels,
+                              wrongid='wrongid' in labels
+                              )
+                        ,ignore_index=True)   
+                    
+    return df
+    
 def tags_to_df(Tags):
     df = pd.DataFrame(columns=['frame','id','hamming','c','p','g','dm'])
     df[['frame','id']]=df[['frame','id']].astype(np.int32)
@@ -108,7 +170,8 @@ def tags_to_df(Tags):
 def load_tracks_df(filename):
     with open(filename,"r") as f:
         T=json.load(f)
-    return tracks_to_df(T)
+        
+    return tracksV2_to_df(T) # Handle both v1 and v2
 
 def load_tags_df(filename):
     with open(filename,"r") as f:
@@ -153,7 +216,7 @@ def timestamp_from_filename(filename):
     if (info is None): return None
     return info['timestamp']
 
-def load_fileset(inputlist):
+def load_fileset(inputlist=None, filelist=None, base=None):
     '''
     ex: inputlist="/Users/megret/Documents/Research/BeeTracking/Soft/labelbee/python/inputlist.csv"
     '''
@@ -163,7 +226,10 @@ def load_fileset(inputlist):
     
     df_list=[]
     for index, fileinfo in L.iterrows():
-        filename=fileinfo['filename']
+        if (base is None):
+            filename=fileinfo['filename']
+        else:
+            filename=base+'/'+fileinfo['filename']
         print("Loading {}...".format(filename))
         
         infos=parse_filename(filename)
@@ -239,9 +305,9 @@ def plot_activities(df):
     rmap = {id: i for i,id in enumerate(ids)}    
     df[['uid']]=df[['id']].applymap(lambda x: rmap[x])
     
-    df['FA']=df['falsealarm'] | df['wrongid']
+    df.loc[:,'FA'] = df['falsealarm'] | df['wrongid']
     
-    fig=plt.figure()
+    #fig=plt.figure()
     idx=df.query('not falsealarm and not wrongid and not walking and not fanning and not pollen and not entering and not leaving').index
     plt.plot(df['datetime'][idx].tolist(),df['uid'][idx],'.',c='k',label='other')
     idx=df.query('falsealarm or wrongid').index
@@ -275,7 +341,7 @@ def plot_activities(df):
     ax.grid(color='#888888', linestyle='-', linewidth=1)
     ax.legend()
     
-    return fig
+    #return fig
 
 def main(args):
     evts=load_fileset(args.inputlist)
