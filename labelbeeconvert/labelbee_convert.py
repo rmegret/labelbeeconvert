@@ -43,7 +43,7 @@ def tracks_to_df(T, activity_type='bool', id_type='int', ignore_non_numeric_id=T
         for id in frameDict:
             item=frameDict[id]
             if (ignore_non_numeric_id):
-                if (not str(item['ID']).isdigits()):
+                if (not str(item['ID']).isdigit()):
                     continue
             if ('labels' not in item):
                 labelsstr=''
